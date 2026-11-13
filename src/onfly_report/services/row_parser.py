@@ -17,7 +17,10 @@ class RowParser:
     """
 
     def parse(self, raw: RawRow) -> Reservation:
+        """Converte uma RawRow em Reservation, levantando InputFileError se algum campo for inválido."""
         values = raw.values
+        # Texto usa "or ''" para tratar campo ausente ou None antes do strip().
+        # Datas, inteiro e Decimal falham com ValueError/InvalidOperation e são convertidos abaixo.
         try:
             return Reservation(
                 reservation_id=(values.get("reservation_id") or "").strip(),
@@ -34,6 +37,7 @@ class RowParser:
                 currency=(values.get("currency") or "").strip(),
                 amount=Decimal((values.get("amount") or "").strip()),
                 payment_method=(values.get("payment_method") or "").strip(),
+                # O número da linha vem junto para que as mensagens de erro apontem o lugar exato.
                 line_number=raw.line_number,
             )
         except (ValueError, InvalidOperation) as err:

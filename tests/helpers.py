@@ -30,6 +30,7 @@ COLUMNS = [
     "booked_at",
 ]
 
+# Linha base válida; cada teste sobrescreve só os campos que interessam.
 BASE = {
     "reservation_id": "R-1",
     "traveler_name": "Pessoa Teste",
@@ -60,16 +61,19 @@ def run_cli(tmp_path: Path, rows: list[dict[str, str]], top: int = 5) -> dict:
         writer.writeheader()
         writer.writerows({**BASE, **row} for row in rows)
 
+    # Taxas fixas usadas por todos os testes: USD = 5,42 e EUR = 5,88.
     rates_path.write_text(
         "currency,rate_to_brl\nBRL,1.000000\nUSD,5.420000\nEUR,5.880000\n",
         encoding="utf-8",
     )
 
+    # Garante que o subprocesso consiga importar o pacote, seja a partir de src/ ou da raiz.
     environment = os.environ.copy()
     for import_root in (SRC_DIR, PROJECT_ROOT):
         if (import_root / "onfly_report").is_dir():
             environment["PYTHONPATH"] = str(import_root) + os.pathsep + environment.get("PYTHONPATH", "")
             break
+    # Evita gravar arquivos .pyc durante os testes.
     environment["PYTHONDONTWRITEBYTECODE"] = "1"
 
     process = subprocess.run(

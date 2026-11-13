@@ -1,4 +1,9 @@
-"""Interface de linha de comando do consolidador."""
+"""Interface de linha de comando do consolidador.
+
+Ponto de entrada: lê os argumentos, executa o ReportBuilder, grava o JSON e
+imprime um resumo no stdout. Códigos de saída: 0 sucesso; 1 erro inesperado
+ou de escrita; 2 erro no arquivo de entrada (ou argumento inválido).
+"""
 
 from __future__ import annotations
 
@@ -17,6 +22,7 @@ logger = logging.getLogger("onfly_report")
 
 
 def build_parser() -> argparse.ArgumentParser:
+    """Cria o parser com as opções --input, --rates, --output e --top."""
     parser = argparse.ArgumentParser(
         prog="onfly_report",
         description="Consolida a exportação de reservas de hotel em um relatório JSON.",
@@ -29,13 +35,19 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Executa o relatório pela linha de comando e devolve o código de saída.
+
+    Com argv=None o argparse usa sys.argv; passar uma lista facilita os testes.
+    """
     configure_logging()
     parser = build_parser()
     args = parser.parse_args(argv)
 
+    # parser.error encerra o programa com código 2 e exibe a mensagem de uso.
     if args.top < 1:
         parser.error("--top deve ser maior ou igual a 1")
 
+    # Erro de arquivo vira código 2; qualquer outra falha vira 1 e é logada com traceback.
     try:
         report = ReportBuilder(
             reservation_repository=CsvReservationRepository(Path(args.input)),
@@ -49,6 +61,8 @@ def main(argv: list[str] | None = None) -> int:
         logger.exception("erro inesperado ao gerar o relatório")
         return 1
 
+    # Cria a pasta de saída se necessário. ensure_ascii=False mantém acentos legíveis
+    # no JSON; o "\n" final deixa o arquivo terminado em quebra de linha.
     output_path = Path(args.output)
     try:
         output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -60,6 +74,7 @@ def main(argv: list[str] | None = None) -> int:
         logger.exception("falha ao escrever o relatório em %s", output_path)
         return 1
 
+    # O resumo vai para stdout; os logs vão para stderr, então não se misturam.
     summary = report["summary"]
     print(
         "Reservas: {total} | Confirmadas: {confirmed} | Noites: {nights} | Total BRL: {amount}".format(
